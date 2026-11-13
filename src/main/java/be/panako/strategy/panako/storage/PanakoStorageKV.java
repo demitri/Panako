@@ -39,11 +39,11 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.lmdbjava.Cursor;
 import org.lmdbjava.Dbi;
@@ -125,9 +125,9 @@ public class PanakoStorageKV implements PanakoStorage{
 		final String resourceName = "panako_resource_map";		
 		resourceMap = env.openDbi(resourceName,DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY);
 		
-		storeQueue = new HashMap<Long,List<long[]>>();
-		deleteQueue = new HashMap<Long,List<long[]>>();
-		queryQueue = new HashMap<Long,List<Long>>();
+		storeQueue = new ConcurrentHashMap<Long,List<long[]>>();
+		deleteQueue = new ConcurrentHashMap<Long,List<long[]>>();
+		queryQueue = new ConcurrentHashMap<Long,List<Long>>();
 	}
 
 	/**
@@ -182,9 +182,7 @@ public class PanakoStorageKV implements PanakoStorage{
 	public void addToStoreQueue(long fingerprintHash, int resourceIdentifier, int t1,int f1) {
 		long[] data = {fingerprintHash,resourceIdentifier,t1,f1};
 		long threadID = Thread.currentThread().getId();
-		if(!storeQueue.containsKey(threadID))
-			storeQueue.put(threadID, new ArrayList<long[]>());
-		storeQueue.get(threadID).add(data);
+		storeQueue.computeIfAbsent(threadID, k -> new ArrayList<long[]>()).add(data);
 	}
 	
 
@@ -231,9 +229,7 @@ public class PanakoStorageKV implements PanakoStorage{
 	public void addToDeleteQueue(long fingerprintHash, int resourceIdentifier, int t1,int f1) {
 		long[] data = {fingerprintHash,resourceIdentifier,t1,f1};
 		long threadID = Thread.currentThread().getId();
-		if(!deleteQueue.containsKey(threadID))
-			deleteQueue.put(threadID, new ArrayList<long[]>());
-		deleteQueue.get(threadID).add(data);
+		deleteQueue.computeIfAbsent(threadID, k -> new ArrayList<long[]>()).add(data);
 	}
 
 	@Override
@@ -279,9 +275,7 @@ public class PanakoStorageKV implements PanakoStorage{
 	@Override
 	public void addToQueryQueue(long queryHash) {
 		long threadID = Thread.currentThread().getId();
-		if(!queryQueue.containsKey(threadID))
-			queryQueue.put(threadID, new ArrayList<Long>());
-		queryQueue.get(threadID).add(queryHash);
+		queryQueue.computeIfAbsent(threadID, k -> new ArrayList<Long>()).add(queryHash);
 	}
 
 	@Override

@@ -35,11 +35,11 @@
 package be.panako.strategy.panako.storage;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.TreeMap;
 
 /**
@@ -75,7 +75,7 @@ public class PanakoStorageMemory implements PanakoStorage {
 	
 	
 	private final TreeMap<Long, List<int[]>> fingerprints;
-	private final HashMap<Long, PanakoResourceMetadata> resourceMap;
+	private final Map<Long, PanakoResourceMetadata> resourceMap;
 	
 	final Map<Long,List<Long>> queryQueue;
 
@@ -84,8 +84,8 @@ public class PanakoStorageMemory implements PanakoStorage {
 	 */
 	public PanakoStorageMemory() {
 		fingerprints = new TreeMap<>();
-		resourceMap = new HashMap<>();
-		queryQueue = new HashMap<Long,List<Long>>();
+		resourceMap = new ConcurrentHashMap<>();
+		queryQueue = new ConcurrentHashMap<Long,List<Long>>();
 	}
 	
 	@Override
@@ -118,11 +118,9 @@ public class PanakoStorageMemory implements PanakoStorage {
 	@Override
 	public void addToStoreQueue(long fingerprintHash, int resourceIdentifier, int t1, int f1) {
 		int[] val = {resourceIdentifier,t1,f1};
-		if(!fingerprints.containsKey(fingerprintHash)) {
-			List<int[]> list = new ArrayList<int[]>();
-			fingerprints.put(fingerprintHash,list);
+		synchronized (fingerprints) {
+			fingerprints.computeIfAbsent(fingerprintHash, k -> new ArrayList<>()).add(val);
 		}
-		fingerprints.get(fingerprintHash).add(val);
 	}
 
 	@Override
@@ -132,9 +130,7 @@ public class PanakoStorageMemory implements PanakoStorage {
 	
 	public void addToQueryQueue(long queryHash) {
 		long threadID = Thread.currentThread().getId();
-		if(!queryQueue.containsKey(threadID))
-			queryQueue.put(threadID, new ArrayList<Long>());
-		queryQueue.get(threadID).add(queryHash);
+		queryQueue.computeIfAbsent(threadID, k -> new ArrayList<Long>()).add(queryHash);
 	}
 
 	public void processQueryQueue(Map<Long,List<PanakoHit>> matchAccumulator,int range) {

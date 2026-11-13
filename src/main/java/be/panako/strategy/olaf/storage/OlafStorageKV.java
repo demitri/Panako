@@ -39,10 +39,10 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.lmdbjava.Cursor;
 import org.lmdbjava.Dbi;
@@ -127,9 +127,9 @@ public class OlafStorageKV implements OlafStorage {
 		final String resourceName = "olaf_resource_map";		
 		resourceMap = env.openDbi(resourceName,DbiFlags.MDB_CREATE, DbiFlags.MDB_INTEGERKEY);
 		
-		storeQueue = new HashMap<>();
-		deleteQueue = new HashMap<>();
-		queryQueue = new HashMap<>();
+		storeQueue = new ConcurrentHashMap<>();
+		deleteQueue = new ConcurrentHashMap<>();
+		queryQueue = new ConcurrentHashMap<>();
 	}
 
 	/**
@@ -191,9 +191,7 @@ public class OlafStorageKV implements OlafStorage {
 	public void addToStoreQueue(long fingerprintHash, int resourceIdentifier, int t1) {
 		long[] data = {fingerprintHash,resourceIdentifier,t1};
 		long threadID = Thread.currentThread().getId();
-		if(!storeQueue.containsKey(threadID))
-			storeQueue.put(threadID, new ArrayList<>());
-		storeQueue.get(threadID).add(data);
+		storeQueue.computeIfAbsent(threadID, k -> new ArrayList<>()).add(data);
 	}
 	
 	/* (non-Javadoc)
@@ -249,9 +247,7 @@ public class OlafStorageKV implements OlafStorage {
 	public void addToDeleteQueue(long key, int val1, int val2) {
 		long[] data = {key,val1,val2};
 		long threadID = Thread.currentThread().getId();
-		if(!deleteQueue.containsKey(threadID))
-			deleteQueue.put(threadID, new ArrayList<long[]>());
-		deleteQueue.get(threadID).add(data);
+		deleteQueue.computeIfAbsent(threadID, k -> new ArrayList<long[]>()).add(data);
 	}
 	
 	public void processDeleteQueue() {
@@ -295,9 +291,7 @@ public class OlafStorageKV implements OlafStorage {
 	
 	public void addToQueryQueue(long queryHash) {
 		long threadID = Thread.currentThread().getId();
-		if(!queryQueue.containsKey(threadID))
-			queryQueue.put(threadID, new ArrayList<Long>());
-		queryQueue.get(threadID).add(queryHash);
+		queryQueue.computeIfAbsent(threadID, k -> new ArrayList<Long>()).add(queryHash);
 	}
 
 

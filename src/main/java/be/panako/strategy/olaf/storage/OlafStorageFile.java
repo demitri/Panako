@@ -37,10 +37,10 @@ package be.panako.strategy.olaf.storage;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import be.panako.util.Config;
@@ -98,7 +98,7 @@ public class OlafStorageFile implements OlafStorage {
 		
 		storeDir = new File(folder);
 		
-		storeQueue = new HashMap<Long,List<long[]>>();
+		storeQueue = new ConcurrentHashMap<Long,List<long[]>>();
 	}
 
 
@@ -130,9 +130,7 @@ public class OlafStorageFile implements OlafStorage {
 	public void addToStoreQueue(long fingerprintHash, int resourceIdentifier, int t1) {
 		long[] data = {fingerprintHash,resourceIdentifier,t1};
 		long threadID = Thread.currentThread().getId();
-		if(!storeQueue.containsKey(threadID))
-			storeQueue.put(threadID, new ArrayList<long[]>());
-		storeQueue.get(threadID).add(data);
+		storeQueue.computeIfAbsent(threadID, k -> new ArrayList<long[]>()).add(data);
 	}
 
 	/**

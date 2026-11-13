@@ -35,11 +35,11 @@
 package be.panako.strategy.olaf.storage;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.TreeMap;
 
 /**
@@ -75,7 +75,7 @@ public class OlafStorageMemory implements OlafStorage {
 	
 	
 	private final TreeMap<Long, List<int[]>> fingerprints;
-	private final HashMap<Long, OlafResourceMetadata> resourceMap;
+	private final Map<Long, OlafResourceMetadata> resourceMap;
 	
 	final Map<Long,List<Long>> queryQueue;
 
@@ -84,8 +84,8 @@ public class OlafStorageMemory implements OlafStorage {
 	 */
 	public OlafStorageMemory() {
 		fingerprints = new TreeMap<>();
-		resourceMap = new HashMap<>();
-		queryQueue = new HashMap<>();
+		resourceMap = new ConcurrentHashMap<>();
+		queryQueue = new ConcurrentHashMap<>();
 	}
 	
 	@Override
@@ -108,11 +108,9 @@ public class OlafStorageMemory implements OlafStorage {
 	@Override
 	public void addToStoreQueue(long fingerprintHash, int resourceIdentifier, int t1) {
 		int[] val = {resourceIdentifier,t1};
-		if(!fingerprints.containsKey(fingerprintHash)) {
-			List<int[]> list = new ArrayList<>();
-			fingerprints.put(fingerprintHash,list);
+		synchronized (fingerprints) {
+			fingerprints.computeIfAbsent(fingerprintHash, k -> new ArrayList<>()).add(val);
 		}
-		fingerprints.get(fingerprintHash).add(val);
 	}
 
 	@Override
@@ -132,9 +130,7 @@ public class OlafStorageMemory implements OlafStorage {
 
 	public void addToQueryQueue(long queryHash) {
 		long threadID = Thread.currentThread().getId();
-		if(!queryQueue.containsKey(threadID))
-			queryQueue.put(threadID, new ArrayList<>());
-		queryQueue.get(threadID).add(queryHash);
+		queryQueue.computeIfAbsent(threadID, k -> new ArrayList<>()).add(queryHash);
 	}
 
 	@Override
